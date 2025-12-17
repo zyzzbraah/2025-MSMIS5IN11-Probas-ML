@@ -31,13 +31,21 @@
         /* --- UI ELEMENTS --- */
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0; visibility: hidden;
+            opacity: 0; 
+            visibility: hidden;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             padding: 2rem 4rem;
-            transition: opacity 0.4s ease-in-out;
+            /* TRANSITION AJOUTÉE: Fait glisser légèrement la diapo depuis le bas */
+            transform: translateY(20px); 
+            transition: opacity 0.6s ease-in-out, transform 0.6s ease-in-out; 
             background: radial-gradient(circle at center, #111 0%, #000 100%);
         }
-        .slide.active { opacity: 1; visibility: visible; z-index: 10; }
+        .slide.active { 
+            opacity: 1; 
+            visibility: visible; 
+            z-index: 10; 
+            transform: translateY(0); /* Ramène la diapo active à sa position normale */
+        }
 
         .panel {
             background: rgba(10, 10, 10, 0.9);
@@ -271,10 +279,11 @@
         <h2>POURQUOI C'EST DIFFICILE ?</h2>
         <div class="w-full max-w-4xl">
             <div class="panel border-l-4 border-accent mb-8">
-                <h3>COMPLEXITE COMBINATOIRE</h3>
+                <h3>COMPLEXITE COMBINATOIRE </h3>
                 <p>Si la position est inconnue dans N séquences de longueur L :</p>
                 <div class="text-center py-4 text-2xl font-mono text-white">
-                    L^N combinaisons possibles
+                    L^N
+                    combinaisons possibles
                 </div>
                 <p class="text-sm">Pour 70 séquences de 100 nucléotides : 100^{70} possibilités. Impossible à tester par force brute.</p>
             </div>
@@ -334,9 +343,9 @@
                     <strong class="text-white block mb-2">DISTRIBUTION DE DIRICHLET</strong>
                     <p class="text-sm">C'est une "distribution sur des distributions".</p>
                     <p class="text-sm mt-2">
-                        paramètre alpha (Pseudocounts) : <br>
-                        Si alpha est faible (< 1), on favorise des distributions "pointues" (Motif très conservé).<br>
-                        Si alpha est élevé, on favorise l'uniformité (Bruit).
+                        paramètre \alpha (Pseudocounts) : <br>
+                        Si \alpha est faible (< 1), on favorise des distributions "pointues" (Motif très conservé).<br>
+                        Si \alpha est élevé, on favorise l'uniformité (Bruit).
                     </p>
                 </div>
             </div>
@@ -348,7 +357,7 @@
 <span class="com">// Variable tableau de vecteurs (4 dims)</span>
 <span class="ty">var</span> motif = <span class="ty">Variable</span>.Array&lt;<span class="ty">Vector</span>&gt;(motifLen);
 motif[motifLen] = <span class="ty">Variable</span>.<span class="fn">Dirichlet</span>(pseudoCounts)
-                          .<span class="fn">ForEach</span>(motifLen);
+    .<span class="fn">ForEach</span>(motifLen);
             </div>
         </div>
     </div>
@@ -508,18 +517,18 @@ sequences.<span class="prop">ObservedValue</span> = realData;
             <div class="flex items-center gap-4">
                 <div class="w-24 text-right text-xs text-gray-500">L = 25</div>
                 <div class="flex-1 bg-gray-800 h-2 rounded overflow-hidden">
-                    <div class="h-full bg-primary w-full"></div>
+                    <div class="h-full bg-green-500 w-full"></div>
                 </div>
-                <div class="w-12 text-xs text-primary">100%</div>
+                <div class="w-12 text-xs text-green-500">100%</div>
             </div>
             
             <!-- 100 chars -->
             <div class="flex items-center gap-4">
                 <div class="w-24 text-right text-xs text-gray-500">L = 100</div>
                 <div class="flex-1 bg-gray-800 h-2 rounded overflow-hidden">
-                    <div class="h-full bg-primary w-[98%]"></div>
+                    <div class="h-full bg-green-500 w-[98%]"></div>
                 </div>
-                <div class="w-12 text-xs text-primary">98%</div>
+                <div class="w-12 text-xs text-green-500">98%</div>
             </div>
 
             <!-- 500 chars -->
@@ -535,9 +544,9 @@ sequences.<span class="prop">ObservedValue</span> = realData;
             <div class="flex items-center gap-4">
                 <div class="w-24 text-right text-xs text-gray-500">L = 1000</div>
                 <div class="flex-1 bg-gray-800 h-2 rounded overflow-hidden">
-                    <div class="h-full bg-accent w-[15%]"></div>
+                    <div class="h-full bg-red-500 w-[15%]"></div>
                 </div>
-                <div class="w-12 text-xs text-accent">15%</div>
+                <div class="w-12 text-xs text-red-500">15%</div>
             </div>
         </div>
         
@@ -666,4 +675,3 @@ sequences.<span class="prop">ObservedValue</span> = realData;
     </script>
 </body>
 </html>
-```

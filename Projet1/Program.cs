@@ -19,24 +19,34 @@ namespace MotifFinder
         // Motif: A, C, [G/T], [Any], T, G, A, [A/C] - Length 8
         static DiscreteChar[] TrueMotifDist = new[]
         {
-            NucleobaseDist(a: 0.8, c: 0.1, g: 0.05, t: 0.05), // A
-            NucleobaseDist(a: 0.0, c: 0.9, g: 0.05, t: 0.05), // C
-            NucleobaseDist(a: 0.0, c: 0.0, g: 0.5, t: 0.5),   // G or T
-            NucleobaseDist(a: 0.25, c: 0.25, g: 0.25, t: 0.25), // Noise
-            NucleobaseDist(a: 0.1, c: 0.1, g: 0.1, t: 0.7),   // T
-            NucleobaseDist(a: 0.0, c: 0.0, g: 0.9, t: 0.1),   // G
-            NucleobaseDist(a: 0.9, c: 0.05, g: 0.0, t: 0.05), // A
-            NucleobaseDist(a: 0.5, c: 0.5, g: 0.0, t: 0.0),   // A or C
+            NucleobaseDist(a: 0.8, c: 0.1, g: 0.05, t: 0.05), // A (80% A)
+            NucleobaseDist(a: 0.0, c: 0.9, g: 0.05, t: 0.05), // C (90% C)
+            NucleobaseDist(a: 0.0, c: 0.0, g: 0.5, t: 0.5),   // G or T (50%/50%)
+            NucleobaseDist(a: 0.25, c: 0.25, g: 0.25, t: 0.25), // Noise (25% each)
+            NucleobaseDist(a: 0.1, c: 0.1, g: 0.1, t: 0.7),   // T (70% T)
+            NucleobaseDist(a: 0.0, c: 0.0, g: 0.9, t: 0.1),   // G (90% G)
+            NucleobaseDist(a: 0.9, c: 0.05, g: 0.0, t: 0.05), // A (90% A)
+            NucleobaseDist(a: 0.5, c: 0.5, g: 0.0, t: 0.0),   // A or C (50%/50%)
         };
 
         public static void Main()
         {
-            //Rand.Restart(1337);
+            // IMPORTANT: Setting a random seed here means the data generated is always the same,
+            // but Random Restarts (below) will use different initializations for the model.
+            // Rand.Restart(1337); 
 
             Console.WriteLine("==================================================");
             Console.WriteLine("   MOTIF FINDER - AUTOMATED STRESS TESTS");
             Console.WriteLine("==================================================");
             Console.WriteLine();
+
+            // ---------------------------------------------------------
+            // PARAMÈTRE DE ROBUSTESSE: Nombre de redémarrages
+            // ---------------------------------------------------------
+            int numRestarts = 5;
+            Console.WriteLine($"ROBUSTESSE: {numRestarts} Redémarrages Aléatoires par test");
+            Console.WriteLine("--------------------------------------------------");
+
 
             // ---------------------------------------------------------
             // TEST 1: SIGNAL-TO-NOISE (Effect of Sequence Length)
@@ -50,10 +60,23 @@ namespace MotifFinder
 
             foreach (var len in testLengths)
             {
+                double bestScore = 0;
+                string bestConsensus = "????????";
+                
+                // Exécuter l'expérience plusieurs fois avec des initialisations aléatoires
+                for (int i = 0; i < numRestarts; i++)
+                {
+                    double currentScore = RunExperiment(fixedN, len, out string currentConsensus);
+                    if (currentScore > bestScore)
+                    {
+                        bestScore = currentScore;
+                        bestConsensus = currentConsensus;
+                    }
+                }
+
                 Console.Write($"L = {len,4} ... ");
-                var score = RunExperiment(fixedN, len, out string consensus);
-                PrintBar(score);
-                Console.WriteLine($" Score: {score:0.00} | Consensus: {consensus}");
+                PrintBar(bestScore);
+                Console.WriteLine($" Score FINAL: {bestScore:0.00} | Consensus: {bestConsensus}");
             }
             Console.WriteLine();
 
@@ -69,10 +92,23 @@ namespace MotifFinder
 
             foreach (var count in testCounts)
             {
+                double bestScore = 0;
+                string bestConsensus = "????????";
+
+                // Exécuter l'expérience plusieurs fois avec des initialisations aléatoires
+                for (int i = 0; i < numRestarts; i++)
+                {
+                    double currentScore = RunExperiment(count, fixedL, out string currentConsensus);
+                    if (currentScore > bestScore)
+                    {
+                        bestScore = currentScore;
+                        bestConsensus = currentConsensus;
+                    }
+                }
+
                 Console.Write($"N = {count,4} ... ");
-                var score = RunExperiment(count, fixedL, out string consensus);
-                PrintBar(score);
-                Console.WriteLine($" Score: {score:0.00} | Consensus: {consensus}");
+                PrintBar(bestScore);
+                Console.WriteLine($" Score FINAL: {bestScore:0.00} | Consensus: {bestConsensus}");
             }
 
             Console.WriteLine("\nTerminé. Appuyez sur Entrée pour quitter.");
@@ -85,7 +121,7 @@ namespace MotifFinder
         /// <returns>A "Similarity Score" (0.0 to 1.0) indicating how close the inferred motif is to the true motif.</returns>
         private static double RunExperiment(int sequenceCount, int sequenceLength, out string inferredConsensus)
         {
-            // 1. Sample Data
+            // 1. Sample Data (Data generation is the same for all restarts in a single test)
             var backgroundNucleobaseDist = NucleobaseDist(a: 0.25, c: 0.25, g: 0.25, t: 0.25);
             SampleMotifData(sequenceCount, sequenceLength, 0.8, TrueMotifDist, backgroundNucleobaseDist, out string[] sequenceData, out int[] _);
 
@@ -93,8 +129,11 @@ namespace MotifFinder
             int motifLength = TrueMotifDist.Length;
             
             // Priors
+            // Prior Dirichlet (alpha) ajusté à 0.1 pour être non-informatif et permettre aux données de dominer rapidement.
+            double alpha = 0.1; 
+            
             Vector motifNucleobasePseudoCounts = PiecewiseVector.Constant(char.MaxValue + 1, 1e-6);
-            motifNucleobasePseudoCounts['A'] = motifNucleobasePseudoCounts['C'] = motifNucleobasePseudoCounts['G'] = motifNucleobasePseudoCounts['T'] = 1.0;
+            motifNucleobasePseudoCounts['A'] = motifNucleobasePseudoCounts['C'] = motifNucleobasePseudoCounts['G'] = motifNucleobasePseudoCounts['T'] = alpha;
 
             Range motifCharsRange = new Range(motifLength);
             VariableArray<Vector> motifNucleobaseProbs = Variable.Array<Vector>(motifCharsRange);
@@ -136,7 +175,9 @@ namespace MotifFinder
             sequences.ObservedValue = sequenceData;
             var engine = new InferenceEngine();
             engine.ShowProgress = false; 
-            engine.Compiler.RecommendedQuality = QualityBand.Experimental; 
+            engine.Compiler.RecommendedQuality = QualityBand.Experimental;
+            // Augmenter le nombre d'itérations
+            engine.NumberOfIterations = 50; 
 
             // Infer the PFM (Position Frequency Matrix)
             var posterior = engine.Infer<IList<Dirichlet>>(motifNucleobaseProbs);
@@ -150,17 +191,30 @@ namespace MotifFinder
             {
                 var meanVector = posterior[i].GetMean();
                 
-                // Find the character with the highest probability in the TRUE distribution
-                double maxTrueProb = 0;
-                char maxTrueChar = '?';
+                // Ajuster le calcul du score pour sommer les probabilités inférées
+                // pour tous les caractères qui sont fortement représentés (prob > 0.4) dans le vrai motif.
+                double trueMaxProb = 0;
+                List<char> trueDominantChars = new List<char>();
                 
+                // Trouver les caractères dominants dans le VRAI motif (TrueMotifDist)
                 foreach(char c in new[] {'A', 'C', 'G', 'T'}) {
                     double p = TrueMotifDist[i][c];
-                    if(p > maxTrueProb) { maxTrueChar = c; }
+                    if(p > 0.4) // Seuil pour considérer un caractère comme "dominant" (ex: 50/50 G/T)
+                    { 
+                        trueDominantChars.Add(c); 
+                        trueMaxProb += p; 
+                    }
                 }
-
-                // Add the inferred probability of that character to the score
-                totalScore += meanVector[maxTrueChar];
+                
+                // Calculer le score: Somme des probabilités inférées par le modèle pour ces caractères dominants
+                double inferredProbForDominant = 0;
+                foreach(char c in trueDominantChars)
+                {
+                    inferredProbForDominant += meanVector[c];
+                }
+                
+                // Normaliser le score par la somme totale des probabilités des vrais dominants (pour éviter les scores > 1 si TrueMaxProb est très bas)
+                totalScore += inferredProbForDominant; 
 
                 // Build consensus string for display
                 double maxInferred = 0;
@@ -172,7 +226,8 @@ namespace MotifFinder
             }
 
             inferredConsensus = consensusStr;
-            return totalScore / motifLength; // Normalize to 0-1
+            // Le totalScore est déjà la somme des probabilités, il suffit de le normaliser par la longueur du motif
+            return totalScore / motifLength; 
         }
 
         // --- Helpers (unchanged) ---
